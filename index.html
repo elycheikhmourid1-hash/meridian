@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Meridian</title>
+  <meta name="theme-color" content="#07080c"/>
+  <style>
+    html,body{margin:0;height:100%;background:#07080c;color:#e8eef2;font-family:sans-serif;overflow:hidden}
+    canvas{display:block}
+    .hud{position:fixed;inset-inline-start:1rem;top:1rem;width:min(22rem,calc(100vw - 2rem));z-index:4}
+    .card{background:rgba(7,8,12,.72);border:1px solid rgba(158,201,216,.18);border-radius:14px;padding:1rem;backdrop-filter:blur(16px)}
+    .kicker{margin:0;font-size:.7rem;letter-spacing:.16em;color:#9ec9d8}
+    h1{font-weight:400;font-size:2rem;margin:.2rem 0 .4rem}
+    .body{color:#9aa8b0;font-size:.9rem;line-height:1.55}
+    button{font:inherit;border:0;cursor:pointer;background:#9ec9d8;color:#071015;border-radius:999px;padding:.45rem .9rem}
+    .log{max-height:11rem;overflow:auto;list-style:none;margin:.6rem 0 0;padding:0;font-size:.75rem;color:#9aa8b0}
+    .log li.ok{color:#e8eef2}
+    .list{position:fixed;inset-inline-end:1rem;top:1rem;width:min(16rem,calc(100vw - 2rem));z-index:4}
+    .list button{display:block;width:100%;text-align:start;background:transparent;color:#e8eef2;margin:.2rem 0}
+  </style>
+</head>
+<body>
+  <div class="hud"><article class="card">
+    <p class="kicker">المرصد · LIVE</p><h1>Meridian</h1>
+    <p class="body">اسحب الكرة. شغّل شبكة الوكلاء.</p>
+    <button id="run" type="button">تشغيل الشبكة</button>
+    <ol class="log" id="log"></ol>
+  </article></div>
+  <aside class="list card">
+    <p class="kicker">المواقع</p>
+    <button type="button" data-lat="46.948" data-lon="7.447">برن</button>
+    <button type="button" data-lat="48.117" data-lon="-1.678">رين</button>
+    <button type="button" data-lat="52.205" data-lon="0.122">كامبريدج</button>
+    <button type="button" data-lat="48.7" data-lon="2.17">بور</button>
+  </aside>
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    const scene=new THREE.Scene(); scene.background=new THREE.Color(0x07080c);
+    const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,0.1,220); camera.position.set(0.35,0.55,2.65);
+    const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,1.75)); document.body.prepend(renderer.domElement);
+    scene.add(new THREE.AmbientLight(0xffffff,0.16));
+    scene.add(new THREE.HemisphereLight(0xb9cbe0,0x0a0c10,0.38));
+    const sun=new THREE.DirectionalLight(0xfff4e6,1.85); sun.position.set(6.2,2.4,3.4); scene.add(sun);
+    const loader=new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
+    const day=loader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+    const night=loader.load('https://threejs.org/examples/textures/planets/earth_lights_2048.jpg');
+    day.colorSpace=THREE.SRGBColorSpace; night.colorSpace=THREE.SRGBColorSpace;
+    const earth=new THREE.Mesh(new THREE.SphereGeometry(1,64,48), new THREE.MeshPhongMaterial({map:day,emissiveMap:night,emissive:new THREE.Color(0xffffff),emissiveIntensity:1.1,shininess:8}));
+    scene.add(earth);
+    const controls=new OrbitControls(camera,renderer.domElement); controls.enablePan=false; controls.enableDamping=true; controls.autoRotate=true; controls.autoRotateSpeed=0.38; controls.minDistance=1.58; controls.maxDistance=4.4;
+    renderer.domElement.addEventListener('pointerdown',()=>{controls.autoRotate=false;});
+    function latLon(lat,lon,r=1.002){const phi=(90-lat)*Math.PI/180, theta=(lon+180)*Math.PI/180; return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));}
+    [[46.948,7.447],[48.117,-1.678],[52.205,0.122],[48.7,2.17]].forEach(([lat,lon])=>{const m=new THREE.Mesh(new THREE.SphereGeometry(0.014,16,16), new THREE.MeshBasicMaterial({color:0xd7e7ee})); m.position.copy(latLon(lat,lon)); scene.add(m);});
+    function fly(lat,lon){camera.position.copy(latLon(lat,lon,2.12)); controls.target.copy(latLon(lat,lon,0.14)); controls.autoRotate=false;}
+    document.querySelectorAll('.list button').forEach(btn=>{btn.onclick=()=>fly(Number(btn.dataset.lat),Number(btn.dataset.lon));});
+    function decode(c){return c.map(x=>x===178?'²':x===95?'':String.fromCharCode(x)).join('');}
+    function fact(n){let x=1; for(let i=2;i<=n;i++) x*=i; return x;}
+    const payloads=[
+      {codes:[69,32,61,32,109,99,178],site:[46.948,7.447],value:'mec2 = 510.999 keV',method:'identity'},
+      {codes:[115,105,110,40,95,120,41],site:[52.205,0.122],value:'sin(0.35) DL5',method:'DL'},
+      {codes:[105,110,116,95,101,120,112],site:[48.7,2.17],value:String(fact(4)),method:'IBP n!'}
+    ];
+    const logEl=document.getElementById('log');
+    function line(c,t,ok){const li=document.createElement('li'); if(ok) li.className='ok'; li.textContent=c+' '+t; logEl.appendChild(li);}
+    document.getElementById('run').onclick=()=>{logEl.innerHTML=''; payloads.forEach((p,i)=>{const n=i+1; setTimeout(()=>line(n,'GEN ['+p.codes.join('] [')+']'), i*2200); setTimeout(()=>line(n,'ANL '+decode(p.codes)+' 1.00 '+p.method), i*2200+700); setTimeout(()=>{fly(p.site[0],p.site[1]); line(n,'EXE OK '+p.value,true);}, i*2200+1400);});};
+    addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight);});
+    (function tick(){controls.update(); renderer.render(scene,camera); requestAnimationFrame(tick);}());
+  </script>
+</body></html>
